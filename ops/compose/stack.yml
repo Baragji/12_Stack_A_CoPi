@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Vector Database
   milvus:
@@ -136,7 +134,7 @@ services:
 
   # Dify Web
   dify-web:
-    image: langgenius/dify-web:0.6.16
+    image: langgenius/dify-web:0.6.15
     container_name: dify-web
     environment:
       CONSOLE_API_URL: http://localhost:5001
@@ -154,7 +152,7 @@ services:
 
   # Dify API
   dify-api:
-    image: langgenius/dify-api:0.6.16
+    image: langgenius/dify-api:0.6.15
     container_name: dify-api
     environment:
       # Database
