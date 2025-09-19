@@ -1,0 +1,9 @@
+{
+  "node": ["20", "22"],
+  "milvus": ["v2.6.0"],
+  "rocketmq_dashboard": ["2.1.0"],
+  "keycloak": ["26.3.2"],
+  "dify": ["v1.6.0"],
+  "ragflow": ["main"],
+  "wasmtime": ["36.0.0"]
+}

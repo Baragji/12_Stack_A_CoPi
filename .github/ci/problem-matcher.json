@@ -1,0 +1,54 @@
+{
+  "problemMatcher": [
+    {
+      "owner": "stacka-smoke-tests",
+      "pattern": [
+        {
+          "regexp": "^\\s*(FAIL|ERROR)\\s+(.+?):(\\d+):(\\d+)\\s+(.+)$",
+          "severity": 1,
+          "file": 2,
+          "line": 3,
+          "column": 4,
+          "message": 5
+        }
+      ]
+    },
+    {
+      "owner": "stacka-gate-failures",
+      "pattern": [
+        {
+          "regexp": "^::error file=(.+?),line=(\\d+)::(Gate G\\d+: .+)$",
+          "severity": "error",
+          "file": 1,
+          "line": 2,
+          "message": 3
+        }
+      ]
+    },
+    {
+      "owner": "stacka-service-errors",
+      "pattern": [
+        {
+          "regexp": "^(.+?)\\s+ERROR\\s+(.+?):(\\d+)\\s+(.+)$",
+          "severity": "error",
+          "file": 2,
+          "line": 3,
+          "message": 4
+        }
+      ]
+    },
+    {
+      "owner": "stacka-wasm-errors",
+      "pattern": [
+        {
+          "regexp": "^WASM Runtime Error: (.+?) at (.+?):(\\d+):(\\d+)$",
+          "severity": "error",
+          "file": 2,
+          "line": 3,
+          "column": 4,
+          "message": 1
+        }
+      ]
+    }
+  ]
+}

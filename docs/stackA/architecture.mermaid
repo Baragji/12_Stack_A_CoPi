@@ -1,0 +1,101 @@
+graph TB
+    %% VS Code Operator Cockpit
+    subgraph "Operator Environment"
+        VSCode["VS Code Agent Mode<br/>MCP Integration"]
+        MCP_Config[".vscode/mcp.json"]
+        VSCode --> MCP_Config
+    end
+
+    %% API Gateway & Authentication
+    subgraph "Authentication Layer"
+        Keycloak["Keycloak 26.3.2<br/>OIDC/RBAC<br/>G0 Policy"]
+    end
+
+    %% Orchestration Layer
+    subgraph "Orchestration Layer"
+        Orchestrator["Hono Orchestrator<br/>AgentScope<br/>Runtime Selection"]
+        SSE_Endpoint["SSE /stream<br/>Event Fan-out"]
+        Run_Endpoint["/run Endpoint<br/>Task Execution"]
+        
+        Orchestrator --> SSE_Endpoint
+        Orchestrator --> Run_Endpoint
+    end
+
+    %% Execution Runtimes (WASM-first)
+    subgraph "Execution Runtimes"
+        direction TB
+        WASM_Runtime["🚀 WASM-first Path<br/>SpinKube + Wasmtime 36.0.0"]
+        Container_Fallback["🐳 Container Fallback<br/>E2B / Kata Containers"]
+        
+        subgraph "WASM Environment"
+            SpinApp["SpinApp CRD<br/>code-runner-wasm"]
+            Spin_Config["spin.toml<br/>Egress Allowlist"]
+            Wasmtime["Wasmtime Runtime<br/>Security Sandbox"]
+            
+            SpinApp --> Spin_Config
+            SpinApp --> Wasmtime
+        end
+    end
+
+    %% Platform Services
+    subgraph "Platform Services"
+        direction LR
+        Dify["Dify v1.6.0+<br/>Two-way MCP<br/>AI Orchestration"]
+        RAGFlow["RAGFlow<br/>RAG Studio<br/>MCP Server"]
+        
+        Dify <--> RAGFlow
+    end
+
+    %% Data Layer
+    subgraph "Data & Storage"
+        Milvus["Milvus v2.6.0<br/>Vector Database<br/>Embeddings"]
+        RocketMQ["RocketMQ 5.3<br/>Event Streaming<br/>UMCA Events"]
+        Dashboard["RocketMQ Dashboard 2.1.0<br/>Ops Interface"]
+        
+        RocketMQ --> Dashboard
+    end
+
+    %% MCP Connections
+    VSCode -.->|MCP Tools| Dify
+    VSCode -.->|MCP Tools| RAGFlow
+    VSCode -.->|MCP Tools| Orchestrator
+
+    %% Authentication Flow
+    VSCode -->|OIDC Auth| Keycloak
+    Orchestrator -->|Auth Check| Keycloak
+
+    %% Execution Flow
+    Orchestrator -->|G0 Policy Check| Keycloak
+    Orchestrator -->|Default Path| WASM_Runtime
+    Orchestrator -->|Policy Fallback| Container_Fallback
+    
+    %% Runtime Selection Logic
+    WASM_Runtime -.->|"Native deps needed"| Container_Fallback
+    Container_Fallback -.->|"Lightweight task"| WASM_Runtime
+
+    %% Data Flow
+    Orchestrator -->|Store Vectors| Milvus
+    Orchestrator -->|Publish Events| RocketMQ
+    RocketMQ -->|Event Stream| SSE_Endpoint
+
+    %% Platform Integration
+    Orchestrator <-->|Agent Calls| Dify
+    Orchestrator <-->|RAG Queries| RAGFlow
+    Dify -->|Vector Ops| Milvus
+    RAGFlow -->|Vector Storage| Milvus
+
+    %% Event Flows
+    RocketMQ -->|Live Updates| SSE_Endpoint
+
+    %% Styling
+    classDef wasmFirst fill:#e1f5fe,stroke:#0277bd,stroke-width:3px
+    classDef containerFallback fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    classDef platformService fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef dataService fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef auth fill:#ffebee,stroke:#c62828,stroke-width:2px
+
+    class WASM_Runtime,SpinApp,Spin_Config,Wasmtime wasmFirst
+    class Container_Fallback containerFallback
+    class Dify,RAGFlow platformService
+    class Milvus,RocketMQ,Dashboard dataService
+    class Keycloak auth

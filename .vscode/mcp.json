@@ -1,0 +1,163 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vscode-mcp/main/schemas/mcp.json",
+  "version": "1.0",
+  "mcpServers": {
+    "stacka-orchestrator": {
+      "name": "Stack A Orchestrator",
+      "description": "WASM-first code execution orchestrator with UMCA gates",
+      "transport": {
+        "type": "http",
+        "baseUrl": "http://localhost:3000"
+      },
+      "capabilities": [
+        "execute_code",
+        "get_execution_status",
+        "stream_events"
+      ],
+      "authentication": {
+        "type": "oauth2",
+        "authUrl": "http://localhost:8080/realms/stacka/protocol/openid-connect/auth",
+        "tokenUrl": "http://localhost:8080/realms/stacka/protocol/openid-connect/token",
+        "clientId": "stacka-orchestrator",
+        "scopes": ["openid", "profile", "email"]
+      },
+      "tools": [
+        {
+          "name": "execute_code",
+          "description": "Execute code using Stack A WASM-first runtime",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Code to execute"
+              },
+              "language": {
+                "type": "string",
+                "enum": ["javascript", "typescript", "python", "rust", "go"],
+                "description": "Programming language"
+              },
+              "preferWasm": {
+                "type": "boolean",
+                "default": true,
+                "description": "Prefer WASM execution over container"
+              },
+              "maxSeconds": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 300,
+                "default": 30,
+                "description": "Maximum execution time in seconds"
+              }
+            },
+            "required": ["code"]
+          }
+        }
+      ]
+    },
+    "dify-platform": {
+      "name": "Dify AI Platform",
+      "description": "AI application orchestration with two-way MCP",
+      "transport": {
+        "type": "http",
+        "baseUrl": "http://localhost:5001"
+      },
+      "capabilities": [
+        "create_workflow",
+        "run_agent",
+        "manage_tools"
+      ],
+      "tools": [
+        {
+          "name": "create_workflow",
+          "description": "Create AI workflow in Dify",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Workflow name"
+              },
+              "description": {
+                "type": "string",
+                "description": "Workflow description"
+              },
+              "nodes": {
+                "type": "array",
+                "description": "Workflow nodes configuration"
+              }
+            },
+            "required": ["name", "nodes"]
+          }
+        }
+      ]
+    },
+    "ragflow-rag": {
+      "name": "RAGFlow RAG Studio",
+      "description": "RAG pipeline management and document processing",
+      "transport": {
+        "type": "http",
+        "baseUrl": "http://localhost:9380"
+      },
+      "capabilities": [
+        "process_documents",
+        "create_knowledge_base",
+        "query_documents"
+      ],
+      "tools": [
+        {
+          "name": "process_documents",
+          "description": "Process documents for RAG",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "documents": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Document paths or URLs"
+              },
+              "chunkSize": {
+                "type": "number",
+                "default": 512,
+                "description": "Chunk size for document splitting"
+              }
+            },
+            "required": ["documents"]
+          }
+        },
+        {
+          "name": "query_documents",
+          "description": "Query processed documents",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Search query"
+              },
+              "topK": {
+                "type": "number",
+                "default": 5,
+                "description": "Number of results to return"
+              }
+            },
+            "required": ["query"]
+          }
+        }
+      ]
+    }
+  },
+  "preferences": {
+    "defaultTimeout": 30000,
+    "retryAttempts": 3,
+    "enableLogging": true,
+    "logLevel": "info"
+  },
+  "ui": {
+    "showToolDescriptions": true,
+    "groupToolsByServer": true,
+    "enableQuickActions": true
+  }
+}
