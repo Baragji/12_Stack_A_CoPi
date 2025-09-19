@@ -98,7 +98,7 @@ jobs:
           
           # Wait for core services
           echo "::notice::Waiting for Keycloak to be ready"
-          timeout 180 bash -c 'until curl -f http://localhost:8080/health/ready 2>/dev/null; do echo "Waiting for Keycloak..."; sleep 5; done'
+          timeout 180 bash -c 'until curl -f http://localhost:9000/health/ready 2>/dev/null; do echo "Waiting for Keycloak..."; sleep 5; done'
 
       - name: Start messaging services
         run: |

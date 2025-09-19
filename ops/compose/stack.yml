@@ -39,9 +39,10 @@ services:
       KC_HOSTNAME_STRICT_HTTPS: false
     ports:
       - "8080:8080"
+      - "9000:9000"  # Health endpoint
     command: start-dev
     healthcheck:
-      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && timeout 5 grep -q 'HTTP/1.1 200' <&3"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && timeout 5 grep -q 'HTTP/1.1 200' <&3"]
       interval: 30s
       timeout: 15s
       retries: 5
