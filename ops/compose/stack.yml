@@ -196,11 +196,45 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASS:-admin}
       KC_HEALTH_ENABLED: "true"
       JAVA_OPTS_APPEND: "-Xms512m -Xmx1024m"
-      KEYCLOAK_IMPORT: /opt/keycloak/data/import/stack-a.json
     ports:
       - "8081:8080"
-    volumes:
-      - ./keycloak-stack-a.json:/opt/keycloak/data/import/stack-a.json:ro
+    networks: [stack]
+
+  keycloak-init:
+    image: curlimages/curl:latest
+    depends_on:
+      keycloak:
+        condition: service_started
+    restart: on-failure
+    entrypoint: |
+      sh -c "
+      echo 'Waiting for Keycloak to be ready...'
+      until curl -sf http://keycloak:8080/realms/master; do
+        sleep 5
+      done
+      echo 'Creating umca-dev realm...'
+      TOKEN=$$(curl -s -X POST http://keycloak:8080/realms/master/protocol/openid-connect/token \
+        -H 'Content-Type: application/x-www-form-urlencoded' \
+        -d 'client_id=admin-cli' \
+        -d 'username=admin' \
+        -d 'password=admin' \
+        -d 'grant_type=password' | sed -n 's/.*\"access_token\":\"\([^\"]*\)\".*/\1/p')
+      curl -X POST http://keycloak:8080/admin/realms \
+        -H \"Authorization: Bearer \$$TOKEN\" \
+        -H 'Content-Type: application/json' \
+        -d '{\"realm\": \"umca-dev\", \"enabled\": true}' || true
+      echo 'Creating client...'
+      curl -X POST http://keycloak:8080/admin/realms/umca-dev/clients \
+        -H \"Authorization: Bearer \$$TOKEN\" \
+        -H 'Content-Type: application/json' \
+        -d '{\"clientId\": \"orchestrator-ci\", \"enabled\": true, \"publicClient\": false, \"secret\": \"orchestrator-secret\", \"standardFlowEnabled\": true, \"directAccessGrantsEnabled\": true, \"redirectUris\": [\"http://localhost:8787/*\"], \"webOrigins\": [\"*\"]}' || true
+      echo 'Creating user...'
+      curl -X POST http://keycloak:8080/admin/realms/umca-dev/users \
+        -H \"Authorization: Bearer \$$TOKEN\" \
+        -H 'Content-Type: application/json' \
+        -d '{\"username\": \"smoke-user\", \"enabled\": true, \"emailVerified\": true, \"credentials\": [{\"type\": \"password\", \"value\": \"Passw0rd!\", \"temporary\": false}]}' || true
+      echo 'Keycloak setup complete'
+      "
     networks: [stack]
 
   otel-collector:
@@ -242,7 +276,7 @@ services:
       WASMTIME_PATH: /usr/bin/wasmtime
       E2B_API_KEY: ${E2B_API_KEY:-}
       OTel_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-    command: ["node", "dist/server.js"]
+    command: ["node", "dist/start.js"]
     ports:
       - "8787:8787"
     networks: [stack]

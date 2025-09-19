@@ -12,6 +12,7 @@ on:
 permissions:
   contents: write
   checks: write
+  actions: write
 
 concurrency:
   group: stackA-${{ github.ref }}
@@ -48,7 +49,7 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - name: Setup Wasmtime
-        uses: bytecodealliance/setup-wasmtime@v1
+        uses: bytecodealliance/actions/wasmtime/setup@v1
         with:
           version: ${{ matrix.wasmtime }}
       - name: Install orchestrator dependencies
@@ -86,6 +87,15 @@ jobs:
         run: docker compose -f ops/compose/stack.yml up -d
       - name: Wait for services
         run: |
+          # Wait for Keycloak init to complete
+          echo "Waiting for Keycloak initialization..."
+          for i in {1..60}; do
+            if ! docker compose -f ops/compose/stack.yml ps keycloak-init 2>/dev/null | grep -q "running\|restarting"; then
+              break
+            fi
+            sleep 5
+          done
+          # Wait for service endpoints
           for url in \
             http://localhost:3000 \
             http://localhost:5001/health \
@@ -131,6 +141,15 @@ jobs:
       - name: Teardown
         if: always()
         run: docker compose -f ops/compose/stack.yml down -v
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stack-a-smoke-logs-${{ matrix.node }}-${{ matrix.dify }}
+          path: |
+            apps/orchestrator/tests/smoke-report.json
+            apps/orchestrator/dist/server.log
+          retention-days: 7
 
   spinkube-validation:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.spin == 'true'
