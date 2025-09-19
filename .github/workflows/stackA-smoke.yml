@@ -60,7 +60,7 @@ jobs:
       - name: Export image digests
         id: image-env
         run: |
-          images='$IMAGES_JSON'
+          images="$IMAGES_JSON"
           dify='${{ matrix.dify }}'
           ragflow='${{ matrix.ragflow }}'
           milvus='${{ matrix.milvus }}'
