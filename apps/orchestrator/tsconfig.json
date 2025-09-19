@@ -8,8 +8,7 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "strict": false,
-    "skipLibCheck": true,
-    "types": ["node"]
+    "skipLibCheck": true
   },
   "include": ["server.ts", "start.ts", "tests/**/*"],
   "exclude": ["dist"]
