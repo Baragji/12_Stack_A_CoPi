@@ -96,19 +96,9 @@ jobs:
           echo "::notice::Starting Stack A ephemeral services"
           docker compose --env-file .env.ci -f ops/compose/stack.yml up -d keycloak
           
-          # Wait for core services with extended timeout
-          echo "::notice::Waiting for Keycloak to be ready (up to 5 minutes)"
-          if ! timeout 300 bash -c 'until curl -f http://localhost:8080/health/ready 2>/dev/null; do echo "Waiting for Keycloak..."; sleep 5; done'; then
-            echo "::error::Keycloak failed to become ready within 300 seconds"
-            echo "::group::Keycloak container logs"
-            docker compose --env-file .env.ci -f ops/compose/stack.yml logs keycloak
-            echo "::endgroup::"
-            echo "::group::Container status"
-            docker compose --env-file .env.ci -f ops/compose/stack.yml ps
-            echo "::endgroup::"
-            exit 1
-          fi
-          echo "::notice::Keycloak is ready and healthy"
+          # Wait for core services
+          echo "::notice::Waiting for Keycloak to be ready"
+          timeout 180 bash -c 'until curl -f http://localhost:8080/health/ready 2>/dev/null; do echo "Waiting for Keycloak..."; sleep 5; done'
 
       - name: Start messaging services
         run: |
