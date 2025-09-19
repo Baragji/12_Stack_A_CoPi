@@ -1,14 +1,14 @@
-version: '3.8'
-
 services:
   # Vector Database
   milvus:
     image: milvusdb/milvus:${MILVUS_VERSION:-v2.6.0}
     container_name: milvus-standalone
+    command: ["milvus", "run", "standalone"]
     environment:
-      ETCD_USE_EMBED: ${ETCD_USE_EMBED:-true}
-      MINIO_USE_EMBED: ${MINIO_USE_EMBED:-true}
-      ROCKSMQ_USE_EMBED: ${ROCKSMQ_USE_EMBED:-true}
+      COMMON_STORAGETYPE: local
+      ETCD_USE_EMBED: "true"
+      MINIO_USE_EMBED: "true"
+      COMMON_SECURITY_AUTHORIZATIONENABLED: "false"
     ports:
       - "19530:19530"  # gRPC
       - "9091:9091"    # HTTP/REST
@@ -31,7 +31,7 @@ services:
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin123}
-      KC_DB: ${KC_DB:-h2}
+      KC_DB: ${KC_DB:-dev-file}
       KC_HEALTH_ENABLED: ${KC_HEALTH_ENABLED:-true}
       KC_METRICS_ENABLED: ${KC_METRICS_ENABLED:-true}
       KC_HTTP_ENABLED: true
@@ -136,7 +136,7 @@ services:
 
   # Dify Web
   dify-web:
-    image: langgenius/dify-web:0.6.16
+    image: langgenius/dify-web:0.6.15
     container_name: dify-web
     environment:
       CONSOLE_API_URL: http://localhost:5001
@@ -154,7 +154,7 @@ services:
 
   # Dify API
   dify-api:
-    image: langgenius/dify-api:0.6.16
+    image: langgenius/dify-api:0.6.15
     container_name: dify-api
     environment:
       # Database
