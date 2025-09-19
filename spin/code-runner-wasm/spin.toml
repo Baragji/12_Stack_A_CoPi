@@ -1,0 +1,12 @@
+spin_version = "2"
+name = "code-runner-wasm"
+trigger = { type = "http", base = "/" }
+
+[[component]]
+id = "code-runner"
+source = "build/code-runner.wasm"
+allowed_outbound_hosts = ["https://phoenix.example.com", "https://api.e2b.dev"]
+env = { "UMCA_GATE" = "G3" }
+[component.trigger]
+type = "http"
+route = "/run"

@@ -1,0 +1,55 @@
+graph TD
+    subgraph IDE[VS Code Agent Mode]
+        IDEClient[Agent Mode Client]
+    end
+
+    subgraph IAM[Keycloak 26.3.2]
+        KC(Keycloak Realm)
+        KC -->|JWKS| Orchestrator
+    end
+
+    subgraph Orchestrator[Hono + AgentScope]
+        Orchestrator{{Multi-Agent Flow}}
+        Phoenix[Phoenix Evaluator]
+        OTel[OpenLLMetry / OTLP]
+        Orchestrator -->|UMCA G1-G3| Phoenix
+        Orchestrator -->|Spans| OTel
+        Orchestrator -->|RocketMQ Producer| MQTopic
+        Orchestrator -->|WASM default| SpinRuntime
+        Orchestrator -->|Container fallback| E2B[E2B/Kata Lane]
+    end
+
+    subgraph Runtime[WASM-first Execution]
+        SpinRuntime[Spin Code Runner (Wasmtime 36)]
+    end
+
+    subgraph Messaging[Event Bus]
+        RocketMQ[(RocketMQ 5.3 Namesrv/Broker)]
+        Dashboard[Dashboard 2.1.0]
+        MQTopic[[`umca-events` Topic]]
+        RocketMQ --> Dashboard
+        MQTopic --> RocketMQ
+    end
+
+    subgraph KnowledgePlane[Sino-Native Control]
+        Dify[Dify 1.8.1 (API/Web/Sandbox)]
+        RAGFlow[RAGFlow v1.0 + MCP]
+        Milvus[(Milvus v2.6.0)]
+        MySQL[(MySQL 8.0)]
+        MinIO[(MinIO S3)]
+        Dify -->|Vector Ops| Milvus
+        RAGFlow -->|Vector Ops| Milvus
+        RAGFlow --> MySQL
+        RAGFlow --> MinIO
+        Dify <--> |Two-way MCP| RAGFlow
+    end
+
+    IDEClient -->|MCP Discovery| Dify
+    IDEClient -->|MCP Discovery| RAGFlow
+    IDEClient -->|Run Spec| Orchestrator
+    Orchestrator -->|OIDC Introspect| KC
+    Orchestrator -->|Tool Calls| Dify
+    Orchestrator -->|Tool Calls| RAGFlow
+    MQTopic -->|SSE Fan-out| SSEStream
+    SSEStream{{/stream SSE Endpoint}} --> IDEClient
+    MQTopic -->|Observability| Dashboard

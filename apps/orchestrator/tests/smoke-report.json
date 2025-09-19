@@ -1,0 +1,56 @@
+[
+  {
+    "component": "dify-health",
+    "status": "fail",
+    "duration_ms": 47.818422999999996,
+    "detail": "fetch failed"
+  },
+  {
+    "component": "ragflow-health",
+    "status": "fail",
+    "duration_ms": 1.2519150000000536,
+    "detail": "fetch failed"
+  },
+  {
+    "component": "orchestrator-health",
+    "status": "fail",
+    "duration_ms": 1.1739689999999996,
+    "detail": "fetch failed"
+  },
+  {
+    "component": "keycloak-token",
+    "status": "fail",
+    "duration_ms": 3.072193000000027,
+    "detail": "fetch failed"
+  },
+  {
+    "component": "keycloak-protected",
+    "status": "fail",
+    "duration_ms": 2.4364630000000034,
+    "detail": "token unavailable"
+  },
+  {
+    "component": "orchestrator-run",
+    "status": "fail",
+    "duration_ms": 0.21663499999999658,
+    "detail": "token unavailable"
+  },
+  {
+    "component": "sse-stream",
+    "status": "fail",
+    "duration_ms": 0.2210239999999999,
+    "detail": "token unavailable"
+  },
+  {
+    "component": "rocketmq-roundtrip",
+    "status": "fail",
+    "duration_ms": 24.76229900000004,
+    "detail": "Startup the rocketmq client failed, clientId=runnervmf4ws1@2449@0@mfr5r3di, error=Error: 14 UNAVAILABLE: No connection established. Last error: Error: connect ECONNREFUSED 127.0.0.1:9876. Resolution note: "
+  },
+  {
+    "component": "milvus-vector",
+    "status": "fail",
+    "duration_ms": 9330.452758,
+    "detail": "Command was killed with SIGTERM (Termination): python3 -c \nimport sys\n\ntry:\n    from pymilvus import (Collection, CollectionSchema, FieldSchema, DataType, connections, utility)\nexcept ImportError:\n    import subprocess\n    subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'pymilvus==2.4.4'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n    from pymilvus import (Collection, CollectionSchema, FieldSchema, DataType, connections, utility)\n\nconnections.connect(host='127.0.0.1', port='19530')\ncollection_name = 'ci_smoke_vectors'\nif utility.has_collection(collection_name):\n    utility.drop_collection(collection_name)\nfields = [\n    FieldSchema(name='id', dtype=DataType.INT64, is_primary=True, auto_id=False),\n    FieldSchema(name='embedding', dtype=DataType.FLOAT_VECTOR, dim=4)\n]\nschema = CollectionSchema(fields)\ncollection = Collection(collection_name, schema)\ncollection.insert([[1], [[0.1, 0.2, 0.3, 0.4]]])\ncollection.load()\nsearch_params = {\n    'metric_type': 'L2',\n    'params': {'nprobe': 1}\n}\nsearch_res = collection.search([[0.1, 0.2, 0.3, 0.4]], 'embedding', search_params, limit=1, output_fields=['id'])\nif len(search_res) == 0 or len(search_res[0]) == 0:\n    raise SystemExit('no hits returned')\nprint('hit', search_res[0][0].id)\n"
+  }
+]

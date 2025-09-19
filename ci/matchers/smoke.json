@@ -1,0 +1,13 @@
+{
+  "problemMatcher": [
+    {
+      "owner": "stacka-smoke",
+      "pattern": [
+        {
+          "regexp": "^SMOKE RESULT component=(?<component>[^\\s]+) status=(?<status>fail) duration_ms=(?<duration>\\d+) detail=(?<message>.+)$",
+          "message": 4
+        }
+      ]
+    }
+  ]
+}

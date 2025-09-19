@@ -1,0 +1,16 @@
+{
+  "problemMatcher": [
+    {
+      "owner": "stack-a-gates",
+      "pattern": [
+        {
+          "regexp": "^G([0-3]) FAIL ([^:]+):(\\d+):(\\d+) - (.+)$",
+          "file": 2,
+          "line": 3,
+          "column": 4,
+          "message": 5
+        }
+      ]
+    }
+  ]
+}
