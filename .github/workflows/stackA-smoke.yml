@@ -1,13 +1,14 @@
+---
 name: Stack A Smoke
 
 on:
-  pull_request:
+  pull_request: null
   workflow_dispatch:
     inputs:
       spin:
         description: "Run SpinKube validation"
         default: "false"
-        required: false
+        required: "false"
 
 permissions:
   contents: write
@@ -16,7 +17,7 @@ permissions:
 
 concurrency:
   group: stackA-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: "true"
 
 jobs:
   prepare:
@@ -40,7 +41,7 @@ jobs:
       IMAGES_JSON: ${{ needs.prepare.outputs.images }}
       UMCA_TOPIC: umca-events
     strategy:
-      fail-fast: false
+      fail-fast: "false"
       matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
@@ -67,20 +68,34 @@ jobs:
           rocketmq='${{ matrix.rocketmq }}'
           dashboard='${{ matrix.rocketmq_dashboard }}'
           keycloak='${{ matrix.keycloak }}'
-          echo "DIFY_API_IMAGE=$(echo "$images" | jq -r ".dify[\"$dify\"].api")" >> $GITHUB_ENV
-          echo "DIFY_WEB_IMAGE=$(echo "$images" | jq -r ".dify[\"$dify\"].web")" >> $GITHUB_ENV
-          echo "DIFY_SANDBOX_IMAGE=$(echo "$images" | jq -r ".dify[\"$dify\"].sandbox")" >> $GITHUB_ENV
-          echo "DIFY_POSTGRES_IMAGE=$(echo "$images" | jq -r ".dify[\"$dify\"].postgres")" >> $GITHUB_ENV
-          echo "DIFY_REDIS_IMAGE=$(echo "$images" | jq -r ".dify[\"$dify\"].redis")" >> $GITHUB_ENV
-          echo "RAGFLOW_CORE_IMAGE=$(echo "$images" | jq -r ".ragflow[\"$ragflow\"].core")" >> $GITHUB_ENV
-          echo "RAGFLOW_MYSQL_IMAGE=$(echo "$images" | jq -r ".ragflow[\"$ragflow\"].mysql")" >> $GITHUB_ENV
-          echo "RAGFLOW_MINIO_IMAGE=$(echo "$images" | jq -r ".ragflow[\"$ragflow\"].minio")" >> $GITHUB_ENV
-          echo "MILVUS_IMAGE=$(echo "$images" | jq -r ".milvus[\"$milvus\"].standalone")" >> $GITHUB_ENV
-          echo "ROCKETMQ_NAMESRV_IMAGE=$(echo "$images" | jq -r ".rocketmq[\"$rocketmq\"].namesrv")" >> $GITHUB_ENV
-          echo "ROCKETMQ_BROKER_IMAGE=$(echo "$images" | jq -r ".rocketmq[\"$rocketmq\"].broker")" >> $GITHUB_ENV
-          echo "ROCKETMQ_DASHBOARD_IMAGE=$(echo "$images" | jq -r ".rocketmq_dashboard[\"$dashboard\"].ui")" >> $GITHUB_ENV
-          echo "KEYCLOAK_IMAGE=$(echo "$images" | jq -r ".keycloak[\"$keycloak\"].server")" >> $GITHUB_ENV
-          echo "OTEL_COLLECTOR_IMAGE=$(echo "$images" | jq -r ".observability.otel_collector")" >> $GITHUB_ENV
+          echo "DIFY_API_IMAGE=$(echo "$images" | \
+            jq -r ".dify[\"$dify\"].api")" >> $GITHUB_ENV
+          echo "DIFY_WEB_IMAGE=$(echo "$images" | \
+            jq -r ".dify[\"$dify\"].web")" >> $GITHUB_ENV
+          echo "DIFY_SANDBOX_IMAGE=$(echo "$images" | \
+            jq -r ".dify[\"$dify\"].sandbox")" >> $GITHUB_ENV
+          echo "DIFY_POSTGRES_IMAGE=$(echo "$images" | \
+            jq -r ".dify[\"$dify\"].postgres")" >> $GITHUB_ENV
+          echo "DIFY_REDIS_IMAGE=$(echo "$images" | \
+            jq -r ".dify[\"$dify\"].redis")" >> $GITHUB_ENV
+          echo "RAGFLOW_CORE_IMAGE=$(echo "$images" | \
+            jq -r ".ragflow[\"$ragflow\"].core")" >> $GITHUB_ENV
+          echo "RAGFLOW_MYSQL_IMAGE=$(echo "$images" | \
+            jq -r ".ragflow[\"$ragflow\"].mysql")" >> $GITHUB_ENV
+          echo "RAGFLOW_MINIO_IMAGE=$(echo "$images" | \
+            jq -r ".ragflow[\"$ragflow\"].minio")" >> $GITHUB_ENV
+          echo "MILVUS_IMAGE=$(echo "$images" | \
+            jq -r ".milvus[\"$milvus\"].standalone")" >> $GITHUB_ENV
+          echo "ROCKETMQ_NAMESRV_IMAGE=$(echo "$images" | \
+            jq -r ".rocketmq[\"$rocketmq\"].namesrv")" >> $GITHUB_ENV
+          echo "ROCKETMQ_BROKER_IMAGE=$(echo "$images" | \
+            jq -r ".rocketmq[\"$rocketmq\"].broker")" >> $GITHUB_ENV
+          echo "ROCKETMQ_DASHBOARD_IMAGE=$(echo "$images" | \
+            jq -r ".rocketmq_dashboard[\"$dashboard\"].ui")" >> $GITHUB_ENV
+          echo "KEYCLOAK_IMAGE=$(echo "$images" | \
+            jq -r ".keycloak[\"$keycloak\"].server")" >> $GITHUB_ENV
+          echo "OTEL_COLLECTOR_IMAGE=$(echo "$images" | \
+            jq -r ".observability.otel_collector")" >> $GITHUB_ENV
       - name: Register problem matcher
         run: echo "::add-matcher::ci/matchers/smoke.json"
       - name: Launch Stack A services
@@ -90,16 +105,19 @@ jobs:
           # Wait for Keycloak init to complete
           echo "Waiting for Keycloak initialization..."
           for i in {1..60}; do
-            if ! docker compose -f ops/compose/stack.yml ps keycloak-init 2>/dev/null | grep -q "running\|restarting"; then
+            if ! docker compose -f ops/compose/stack.yml ps keycloak-init \
+              2>/dev/null | grep -q "running\|restarting"; then
               break
             fi
             sleep 5
           done
           # Wait for service endpoints
+          keycloak_url="http://localhost:8081/realms/umca-dev"
+          keycloak_url="$keycloak_url/.well-known/openid-configuration"
           for url in \
             http://localhost:3000 \
             http://localhost:5001/health \
-            http://localhost:8081/realms/umca-dev/.well-known/openid-configuration \
+            "$keycloak_url" \
             http://localhost:8085/api/health \
             http://localhost:8787/healthz; do
             echo "Waiting for $url"
@@ -109,12 +127,16 @@ jobs:
               fi
               sleep 10
             done
-            curl -kfsS "$url" >/dev/null 2>&1 || { echo "::error::Service $url failed to become ready"; exit 1; }
+            curl -kfsS "$url" >/dev/null 2>&1 || { \
+              echo "::error::Service $url failed to become ready"; exit 1; }
           done
       - name: Request access token
         id: oidc
         run: |
-          TOKEN=$(curl -s -X POST "http://localhost:8081/realms/umca-dev/protocol/openid-connect/token" \
+          keycloak_token_url="http://localhost:8081/realms/umca-dev"
+          keycloak_token_url="$keycloak_token_url/protocol/openid-connect/token"
+          TOKEN=$(curl -s -X POST \
+            "$keycloak_token_url" \
             -H 'Content-Type: application/x-www-form-urlencoded' \
             -d 'client_id=orchestrator-ci' \
             -d 'client_secret=orchestrator-secret' \
@@ -131,7 +153,8 @@ jobs:
       - name: Run smoke tests
         env:
           TOKEN: ${{ steps.oidc.outputs.token }}
-        run: npm run test:smoke --prefix apps/orchestrator -- --token "$TOKEN"
+        run: |
+          npm run test:smoke --prefix apps/orchestrator -- --token "$TOKEN"
       - name: Collect smoke diagnostics
         if: always()
         env:
@@ -152,7 +175,9 @@ jobs:
           retention-days: 7
 
   spinkube-validation:
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.spin == 'true'
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.spin == 'true'
     needs: prepare
     runs-on: ubuntu-latest
     steps:
@@ -160,19 +185,24 @@ jobs:
       - name: Set up kinD cluster
         uses: helm/kind-action@v1
         with:
-          wait: true
+          wait: "true"
       - name: Install Spin CLI
         uses: fermyon/actions/spin@v2
       - name: Install SpinKube
         run: |
-          kubectl apply -f https://github.com/spinkube/spinkube/releases/latest/download/spinkube-operator.yaml
-          kubectl wait --for=condition=Available deployment/spin-operator-controller-manager -n spinkube-system --timeout=120s
+          kubectl apply -f \
+            https://github.com/spinkube/spinkube/releases/latest/download/spinkube-operator.yaml
+          kubectl wait --for=condition=Available \
+            deployment/spin-operator-controller-manager \
+            -n spinkube-system --timeout=120s
           spin plugins install --yes kube
       - name: Deploy sample runtime
         run: |
-          spin kube manifest --file spin/code-runner-wasm/spin.toml --output spin/code-runner-wasm/kube.yaml
+          spin kube manifest --file spin/code-runner-wasm/spin.toml \
+            --output spin/code-runner-wasm/kube.yaml
           kubectl apply -f spin/code-runner-wasm/kube.yaml
           kubectl get pods -A
       - name: Verify Wasmtime default lane
         run: |
-          kubectl logs deployment/spin-operator-controller-manager -n spinkube-system
+          kubectl logs deployment/spin-operator-controller-manager \
+            -n spinkube-system

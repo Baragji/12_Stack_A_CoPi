@@ -1,5 +1,3 @@
-version: "3.9"
-
 x-dify-env: &dify-env
   DB_USERNAME: ${DIFY_DB_USER:-dify}
   DB_PASSWORD: ${DIFY_DB_PASS:-dify-pass}
