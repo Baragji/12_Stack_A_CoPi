@@ -48,7 +48,7 @@ function logResult(result: SmokeResult) {
 const record: Recorder = async (component, run) => {
   const start = performance.now();
   try {
-    const detail = (await run()) ?? '';
+    const detail = (await run()) || '';
     const duration = performance.now() - start;
     const result: SmokeResult = { component, status: 'pass', duration_ms: duration, detail };
     results.push(result);

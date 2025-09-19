@@ -11,6 +11,6 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["server.ts", "start.ts"],
+  "include": ["server.ts", "start.ts", "tests/**/*"],
   "exclude": ["dist"]
 }
