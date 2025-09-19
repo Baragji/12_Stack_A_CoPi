@@ -24,25 +24,16 @@ jobs:
 
       - name: Load version matrix
         id: set-matrix
+        shell: bash
         run: |
-          echo "matrix=$(cat ci/versions.json)" >> $GITHUB_OUTPUT
+          matrix=$(jq -c . ci/versions.json)
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
   ephemeral-services:
     needs: load-versions
     runs-on: ubuntu-latest
     strategy:
-      matrix: 
-        include:
-          - node: "20"
-            milvus: "v2.6.0"
-            keycloak: "26.3.2"
-            dify: "v1.6.0"
-            rocketmq_dashboard: "2.1.0"
-          - node: "22"
-            milvus: "v2.6.0"
-            keycloak: "26.3.2"
-            dify: "v1.6.0"
-            rocketmq_dashboard: "2.1.0"
+      matrix: ${{ fromJson(needs.load-versions.outputs.matrix) }}
       fail-fast: false
 
     steps:
