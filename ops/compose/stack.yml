@@ -1,0 +1,248 @@
+services:
+  # Vector Database
+  milvus:
+    image: milvusdb/milvus:${MILVUS_VERSION:-v2.6.0}
+    container_name: milvus-standalone
+    command: ["milvus", "run", "standalone"]
+    environment:
+      COMMON_STORAGETYPE: local
+      ETCD_USE_EMBED: "true"
+      MINIO_USE_EMBED: "true"
+      COMMON_SECURITY_AUTHORIZATIONENABLED: "false"
+    ports:
+      - "19530:19530"  # gRPC
+      - "9091:9091"    # HTTP/REST
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+
+  # Identity & Access Management
+  keycloak:
+    image: keycloak/keycloak:${KEYCLOAK_VERSION:-26.3.2}
+    container_name: keycloak
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin123}
+      KC_DB: ${KC_DB:-dev-file}
+      KC_HEALTH_ENABLED: ${KC_HEALTH_ENABLED:-true}
+      KC_METRICS_ENABLED: ${KC_METRICS_ENABLED:-true}
+      KC_HTTP_ENABLED: true
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
+    ports:
+      - "8080:8080"
+      - "9000:9000"  # Health endpoint
+    command: start-dev
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && timeout 5 grep -q 'HTTP/1.1 200' <&3"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+          cpus: '1.0'
+
+  # Message Queue - NameServer
+  rocketmq-nameserver:
+    image: apache/rocketmq:5.3.0
+    container_name: rocketmq-nameserver
+    environment:
+      JAVA_OPT: ${JAVA_OPT:--Xms512m -Xmx1024m -Xmn256m}
+    ports:
+      - "9876:9876"
+    command: sh mqnamesrv
+    healthcheck:
+      test: ["CMD", "sh", "-c", "telnet localhost 9876 < /dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Message Queue - Broker
+  rocketmq-broker:
+    image: apache/rocketmq:5.3.0
+    container_name: rocketmq-broker
+    environment:
+      NAMESRV_ADDR: rocketmq-nameserver:9876
+      JAVA_OPT: ${JAVA_OPT:--Xms512m -Xmx1024m -Xmn256m}
+    ports:
+      - "10911:10911"
+      - "10909:10909"
+    depends_on:
+      rocketmq-nameserver:
+        condition: service_healthy
+    command: sh mqbroker -n rocketmq-nameserver:9876 -c /opt/rocketmq-5.3.0/conf/broker.conf
+    healthcheck:
+      test: ["CMD", "sh", "-c", "telnet localhost 10911 < /dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # RocketMQ Dashboard
+  rocketmq-dashboard:
+    image: apacherocketmq/rocketmq-dashboard:${ROCKETMQ_DASHBOARD_VERSION:-2.1.0}
+    container_name: rocketmq-dashboard
+    environment:
+      JAVA_OPTS: -Xmx256m -Xms256m
+      rocketmq.config.namesrvAddrs: rocketmq-nameserver:9876
+      rocketmq.config.isVIPChannel: false
+    ports:
+      - "8081:8080"
+    depends_on:
+      rocketmq-nameserver:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Dify Database
+  dify-db:
+    image: postgres:15-alpine
+    container_name: dify-db
+    environment:
+      POSTGRES_DB: dify
+      POSTGRES_USER: dify
+      POSTGRES_PASSWORD: dify123
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "dify", "-d", "dify"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Dify Redis
+  dify-redis:
+    image: redis:7.2-alpine
+    container_name: dify-redis
+    command: redis-server --requirepass dify123
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Dify Web
+  dify-web:
+    image: langgenius/dify-web:0.6.15
+    container_name: dify-web
+    environment:
+      CONSOLE_API_URL: http://localhost:5001
+      APP_API_URL: http://localhost:5001
+    ports:
+      - "3001:3000"
+    depends_on:
+      dify-api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # Dify API
+  dify-api:
+    image: langgenius/dify-api:0.6.15
+    container_name: dify-api
+    environment:
+      # Database
+      DB_USERNAME: dify
+      DB_PASSWORD: dify123
+      DB_HOST: dify-db
+      DB_PORT: 5432
+      DB_DATABASE: dify
+      
+      # Redis
+      REDIS_HOST: dify-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: dify123
+      REDIS_DB: 0
+      
+      # App settings
+      SECRET_KEY: sk-9f73s3ljTXVcMT3Blb3ljTqtsKiGHXVcMT3BlbkFJLK7U
+      CONSOLE_WEB_URL: http://localhost:3001
+      APP_WEB_URL: http://localhost:3001
+      FILES_URL: http://localhost:5001
+      
+      # Vector database
+      VECTOR_STORE: milvus
+      MILVUS_HOST: milvus
+      MILVUS_PORT: 19530
+      
+      # MCP Configuration
+      MCP_ENABLED: true
+      MCP_REGISTRY_ENABLED: true
+      
+      # Worker settings
+      CELERY_BROKER_URL: redis://:dify123@dify-redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:dify123@dify-redis:6379/1
+      
+    ports:
+      - "5001:5001"
+    depends_on:
+      dify-db:
+        condition: service_healthy
+      dify-redis:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/5001 && echo -e 'GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && timeout 5 grep -q 'HTTP/1.1 200' <&3"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+
+  # RAGFlow
+  ragflow:
+    image: infiniflow/ragflow:v0.15.0
+    container_name: ragflow
+    environment:
+      # Vector database
+      VECTOR_DB_TYPE: milvus
+      MILVUS_HOST: milvus
+      MILVUS_PORT: 19530
+      
+      # MCP server configuration
+      MCP_SERVER_ENABLED: true
+      MCP_SERVER_PORT: 9381
+      
+    ports:
+      - "9380:80"      # Web interface
+      - "9381:9381"    # MCP server
+    depends_on:
+      milvus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/80 && echo -e 'GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && timeout 5 grep -q 'HTTP/1.1 200' <&3"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+
+networks:
+  default:
+    driver: bridge

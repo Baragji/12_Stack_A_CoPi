@@ -1,0 +1,130 @@
+spin_manifest_version = 2
+
+[application]
+name = "code-runner-wasm"
+version = "0.1.0"
+description = "Stack A WASM-first code execution runtime with strict egress policies"
+authors = ["Stack A Team <team@stacka.dev>"]
+
+[application.trigger.http]
+base = "/"
+
+[[trigger.http]]
+route = "/health"
+component = "health-check"
+
+[[trigger.http]]
+route = "/run"
+component = "code-executor"
+method = "POST"
+
+[component.health-check]
+source = "health.wasm"
+allowed_outbound_hosts = []
+environment = {}
+
+[component.code-executor]
+source = "executor.wasm"
+# Strict egress allowlist for security
+allowed_outbound_hosts = [
+  # Only allow connections to essential services
+  "https://registry.npmjs.org",
+  "https://crates.io",
+  "https://pypi.org",
+  # Internal service communication
+  "http://localhost:19530",  # Milvus
+  "http://localhost:9876",   # RocketMQ
+  "http://localhost:5001",   # Dify API
+  "http://localhost:9380"    # RAGFlow
+]
+
+# Resource limits
+[component.code-executor.environment]
+# Execution limits
+MAX_EXECUTION_TIME = "30"
+MAX_MEMORY_MB = "256"
+MAX_CPU_PERCENT = "50"
+ENABLE_NETWORK = "false"
+ENABLE_FILE_SYSTEM = "false"
+
+# Logging and observability
+LOG_LEVEL = "info"
+OTEL_ENDPOINT = "http://localhost:4317"
+
+# Security settings
+SANDBOX_MODE = "strict"
+ALLOW_NATIVE_CALLS = "false"
+ENABLE_SYSCALL_FILTER = "true"
+
+[component.health-check.environment]
+SERVICE_NAME = "code-runner-wasm"
+VERSION = "0.1.0"
+
+# Global settings
+[variables]
+# Environment-specific configuration
+environment = { default = "development" }
+debug_mode = { default = "false" }
+
+# Security policies
+[policies]
+# G3 Gate: Strict execution policies
+max_execution_time_seconds = 30
+max_memory_bytes = 268435456  # 256MB
+max_file_descriptors = 10
+max_network_connections = 5
+
+# Allowed system calls (minimal set)
+allowed_syscalls = [
+  "read",
+  "write", 
+  "exit",
+  "brk",
+  "mmap",
+  "munmap",
+  "clock_gettime"
+]
+
+# Network egress policy
+[policies.network]
+# Default deny all, explicit allow required
+default_action = "deny"
+# Only allow HTTPS to package registries
+allowed_domains = [
+  "registry.npmjs.org",
+  "crates.io", 
+  "pypi.org"
+]
+
+# File system policy  
+[policies.filesystem]
+# No file system access by default
+allow_read = []
+allow_write = []
+# Temp directory for execution only
+temp_dir = "/tmp/wasm-exec"
+max_file_size_bytes = 1048576  # 1MB
+
+# Runtime configuration
+[runtime]
+# Use Wasmtime with strict security
+engine = "wasmtime"
+version = "36.0.0"
+
+# UMCA Gates integration
+[gates]
+# G0: Authentication handled by orchestrator
+# G1: Evaluation handled by orchestrator  
+# G2: Runtime selection (this is the WASM path)
+g2_runtime = "wasm"
+g2_security_level = "strict"
+
+# G3: Post-execution validation
+[gates.g3]
+enabled = true
+# Validate execution metrics
+max_execution_time_violation = "block"
+memory_limit_violation = "block" 
+cpu_limit_violation = "warn"
+network_policy_violation = "block"
+filesystem_policy_violation = "block"
