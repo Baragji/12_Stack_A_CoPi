@@ -37,9 +37,9 @@ Load `ci/versions.json` with `${{ fromJSON() }}` matrix strategy to enable versi
 
 #### Ephemeral Services Stack
 Use service containers or Docker Compose to run:
-- Dify v1.6 (two-way MCP)
+- Dify v1.7 or higher (two-way MCP)
 - RAGFlow + MCP server  
-- Milvus 2.6.0 standalone
+- Milvus 2.6.0 or higher standalone
 - RocketMQ 5.3 + Dashboard 2.1.0
 - Keycloak 26.3 (dev mode)
 - Hono orchestrator with AgentScope
