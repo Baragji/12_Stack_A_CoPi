@@ -18,7 +18,7 @@
       "pattern": [
         {
           "regexp": "^::error file=(.+?),line=(\\d+)::(Gate G\\d+: .+)$",
-          "severity": "error",
+          "severity": 0,
           "file": 1,
           "line": 2,
           "message": 3
@@ -30,7 +30,7 @@
       "pattern": [
         {
           "regexp": "^(.+?)\\s+ERROR\\s+(.+?):(\\d+)\\s+(.+)$",
-          "severity": "error",
+          "severity": 0,
           "file": 2,
           "line": 3,
           "message": 4
@@ -42,7 +42,7 @@
       "pattern": [
         {
           "regexp": "^WASM Runtime Error: (.+?) at (.+?):(\\d+):(\\d+)$",
-          "severity": "error",
+          "severity": 0,
           "file": 2,
           "line": 3,
           "column": 4,
