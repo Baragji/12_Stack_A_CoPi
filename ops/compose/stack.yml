@@ -1,0 +1,257 @@
+version: "3.9"
+
+x-dify-env: &dify-env
+  DB_USERNAME: ${DIFY_DB_USER:-dify}
+  DB_PASSWORD: ${DIFY_DB_PASS:-dify-pass}
+  DB_DATABASE: ${DIFY_DB_NAME:-dify}
+  DB_HOST: postgres
+  DB_PORT: 5432
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  REDIS_PASSWORD: ${DIFY_REDIS_PASS:-}
+  APP_HOST: 0.0.0.0
+  APP_PORT: 5001
+  FRONTEND_URL: http://dify-web:3000
+  SANDBOX_HOST: http://dify-sandbox:8194
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/1
+  ENABLE_MCP_CONNECTOR: "true"
+  MCP_CONNECTOR_URL: http://ragflow:9380/mcp
+  ROCKETMQ_ENDPOINT: rocketmq-namesrv:9876
+  KEYCLOAK_URL: http://keycloak:8080
+  KEYCLOAK_REALM: umca-dev
+  KEYCLOAK_CLIENT_ID: orchestrator-ci
+
+services:
+  postgres:
+    image: ${DIFY_POSTGRES_IMAGE}
+    environment:
+      POSTGRES_DB: ${DIFY_DB_NAME:-dify}
+      POSTGRES_USER: ${DIFY_DB_USER:-dify}
+      POSTGRES_PASSWORD: ${DIFY_DB_PASS:-dify-pass}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DIFY_DB_USER:-dify}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks: [stack]
+
+  redis:
+    image: ${DIFY_REDIS_IMAGE}
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    networks: [stack]
+
+  dify-api:
+    image: ${DIFY_API_IMAGE}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      <<: *dify-env
+      MODE: api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [stack]
+
+  dify-worker:
+    image: ${DIFY_API_IMAGE}
+    depends_on:
+      dify-api:
+        condition: service_started
+    environment:
+      <<: *dify-env
+      MODE: worker
+    command: ["celery", "-A", "app.celery", "worker", "--loglevel=INFO"]
+    networks: [stack]
+
+  dify-web:
+    image: ${DIFY_WEB_IMAGE}
+    depends_on:
+      dify-api:
+        condition: service_healthy
+    environment:
+      API_URL: http://dify-api:5001
+      NEXT_PUBLIC_MCP_ENABLED: "true"
+    ports:
+      - "3000:3000"
+    networks: [stack]
+
+  dify-sandbox:
+    image: ${DIFY_SANDBOX_IMAGE}
+    environment:
+      SANDBOX_PORT: 8194
+      MAX_EXECUTION_TIME: 120
+      ALLOW_EGRESS: "false"
+    networks: [stack]
+
+  ragflow-mysql:
+    image: ${RAGFLOW_MYSQL_IMAGE}
+    command: ["--default-authentication-plugin=mysql_native_password", "--innodb-buffer-pool-size=512M"]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${RAGFLOW_DB_ROOT:-rootpass}
+      MYSQL_DATABASE: ragflow
+      MYSQL_USER: ragflow
+      MYSQL_PASSWORD: ${RAGFLOW_DB_PASS:-ragflow-pass}
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-pragflow-pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ragflow-mysql:/var/lib/mysql
+    networks: [stack]
+
+  ragflow-minio:
+    image: ${RAGFLOW_MINIO_IMAGE}
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${RAGFLOW_MINIO_USER:-minio}
+      MINIO_ROOT_PASSWORD: ${RAGFLOW_MINIO_PASS:-minio123}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ragflow-minio:/data
+    networks: [stack]
+
+  ragflow:
+    image: ${RAGFLOW_CORE_IMAGE}
+    depends_on:
+      ragflow-mysql:
+        condition: service_healthy
+      ragflow-minio:
+        condition: service_started
+      milvus:
+        condition: service_started
+    environment:
+      RAGFLOW_DB_HOST: ragflow-mysql
+      RAGFLOW_DB_NAME: ragflow
+      RAGFLOW_DB_USER: ragflow
+      RAGFLOW_DB_PASSWORD: ${RAGFLOW_DB_PASS:-ragflow-pass}
+      RAGFLOW_MINIO_ENDPOINT: http://ragflow-minio:9000
+      RAGFLOW_MINIO_ACCESS_KEY: ${RAGFLOW_MINIO_USER:-minio}
+      RAGFLOW_MINIO_SECRET_KEY: ${RAGFLOW_MINIO_PASS:-minio123}
+      RAGFLOW_MILVUS_HOST: milvus
+      RAGFLOW_MILVUS_PORT: 19530
+      RAGFLOW_ENABLE_MCP: "true"
+      MCP_SERVER_PORT: 9380
+      RAGFLOW_DISABLE_ES: "true"
+    ports:
+      - "8085:8080"
+      - "9380:9380"
+    networks: [stack]
+
+  milvus:
+    image: ${MILVUS_IMAGE}
+    environment:
+      ETCD_USE_EMBED: "true"
+      MINIO_USE_EMBED: "true"
+      ROCKSMQ_USE_EMBED: "true"
+      MILVUS_MEMORY_LIMIT: 4GB
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    networks: [stack]
+
+  rocketmq-namesrv:
+    image: ${ROCKETMQ_NAMESRV_IMAGE}
+    command: ["sh", "-c", "cd /home/rocketmq/rocketmq-5.3.0 && bin/mqnamesrv"]
+    ports:
+      - "9876:9876"
+    networks: [stack]
+
+  rocketmq-broker:
+    image: ${ROCKETMQ_BROKER_IMAGE}
+    depends_on:
+      rocketmq-namesrv:
+        condition: service_started
+    command: ["sh", "-c", "cd /home/rocketmq/rocketmq-5.3.0 && bin/mqbroker -n rocketmq-namesrv:9876 -c conf/broker.conf"]
+    environment:
+      JAVA_OPT_EXT: "-Xms512m -Xmx1024m"
+    ports:
+      - "10911:10911"
+      - "10909:10909"
+    networks: [stack]
+
+  rocketmq-dashboard:
+    image: ${ROCKETMQ_DASHBOARD_IMAGE}
+    environment:
+      JAVA_OPTS: "-Drocketmq.namesrv.addr=rocketmq-namesrv:9876"
+    ports:
+      - "8088:8080"
+    networks: [stack]
+
+  keycloak:
+    image: ${KEYCLOAK_IMAGE}
+    command: ["start-dev", "--http-port", "8080"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASS:-admin}
+      KC_HEALTH_ENABLED: "true"
+      JAVA_OPTS_APPEND: "-Xms512m -Xmx1024m"
+      KEYCLOAK_IMPORT: /opt/keycloak/data/import/stack-a.json
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./keycloak-stack-a.json:/opt/keycloak/data/import/stack-a.json:ro
+    networks: [stack]
+
+  otel-collector:
+    image: ${OTEL_COLLECTOR_IMAGE}
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4318:4318"
+    networks: [stack]
+
+  orchestrator:
+    image: node@sha256:66ccf8d19d2efc6c770027baf508aa5ee9f164dcecd2f73d7fd4fe55c7688173
+    depends_on:
+      dify-api:
+        condition: service_healthy
+      ragflow:
+        condition: service_started
+      rocketmq-broker:
+        condition: service_started
+      keycloak:
+        condition: service_started
+    working_dir: /srv/app
+    volumes:
+      - ../../apps/orchestrator:/srv/app:ro
+    environment:
+      NODE_ENV: production
+      MODEL_PLANNER: ${MODEL_PLANNER:-qwen-plus}
+      MODEL_CODER: ${MODEL_CODER:-deepseek-r1}
+      MODEL_TESTER: ${MODEL_TESTER:-glm-4.5}
+      RAGFLOW_MCP_URL: http://ragflow:9380/mcp
+      DIFY_MCP_URL: http://dify-api:5001/mcp
+      RMQ_ADDR: rocketmq-namesrv:9876
+      UMCA_TOPIC: ${UMCA_TOPIC:-umca-events}
+      PHOENIX_URL: ${PHOENIX_URL:-https://phoenix.example.com/v1/evals}
+      PHOENIX_API_KEY: ${PHOENIX_API_KEY:-}
+      KEYCLOAK_ISSUER: http://keycloak:8080/realms/umca-dev
+      KEYCLOAK_AUDIENCE: orchestrator-ci
+      WASMTIME_PATH: /usr/bin/wasmtime
+      E2B_API_KEY: ${E2B_API_KEY:-}
+      OTel_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    command: ["node", "dist/server.js"]
+    ports:
+      - "8787:8787"
+    networks: [stack]
+
+networks:
+  stack:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  ragflow-mysql:
+  ragflow-minio:

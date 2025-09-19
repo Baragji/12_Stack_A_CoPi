@@ -1,0 +1,54 @@
+{
+  "matrix": {
+    "node": ["20", "22"],
+    "dify": ["1.8.1"],
+    "ragflow": ["v1.0"],
+    "milvus": ["v2.6.0"],
+    "rocketmq": ["5.3.0"],
+    "rocketmq_dashboard": ["2.1.0"],
+    "keycloak": ["26.3.2"],
+    "wasmtime": ["36.0.0"]
+  },
+  "images": {
+    "dify": {
+      "1.8.1": {
+        "api": "langgenius/dify-api@sha256:46f5996de5ec9ff2c2f30b3765003783a375170e4e9ee6b9291061ce9bd8212c",
+        "web": "langgenius/dify-web@sha256:46f5996de5ec9ff2c2f30b3765003783a375170e4e9ee6b9291061ce9bd8212c",
+        "sandbox": "langgenius/dify-sandbox@sha256:4e65e8a351a2b17d11750b65403527a347e5cb938bc2271521ca7d689c008ad3",
+        "postgres": "postgres@sha256:dfcf0459185089e88a43197975780f5a3078acd5ece84824a14c9d6fbbab02d0",
+        "redis": "redis@sha256:7fe72c486b910f6b1a9769c937dad5d63648ddee82e056f47417542dd40825bb"
+      }
+    },
+    "ragflow": {
+      "v1.0": {
+        "core": "infiniflow/ragflow@sha256:41ce844bf7e8a34621da12d27e039c502f0774a94f8cab31cbd5c94f87d5a2e7",
+        "mysql": "mysql@sha256:d2fdd0af28933c6f28475ff3b7defdbc0e0475d9f7346b5115b8d3abf8848a1d",
+        "minio": "minio/minio@sha256:1dce27c494a16bae114774f1cec295493f3613142713130c2d22dd5696be6ad3"
+      }
+    },
+    "milvus": {
+      "v2.6.0": {
+        "standalone": "milvusdb/milvus@sha256:13bb2bff4b20598e860ee95ad1f42a167d20f50d9acc9718b09bf34792bb8f10"
+      }
+    },
+    "rocketmq": {
+      "5.3.0": {
+        "namesrv": "apache/rocketmq@sha256:434d8398f99628790f0253fafb40c245c2b5bea7d38dae0c83c66155b1c670f1",
+        "broker": "apache/rocketmq@sha256:434d8398f99628790f0253fafb40c245c2b5bea7d38dae0c83c66155b1c670f1"
+      }
+    },
+    "rocketmq_dashboard": {
+      "2.1.0": {
+        "ui": "apacherocketmq/rocketmq-dashboard@sha256:ce78506bd6fe01095bf1b37c954625e363ba5afae5d1539b77f395785d445e33"
+      }
+    },
+    "keycloak": {
+      "26.3.2": {
+        "server": "quay.io/keycloak/keycloak@sha256:98fab020a3a490aba0978f237e2a06cd0ea42bf149c6cf10f11c0aaf27728ff2"
+      }
+    },
+    "observability": {
+      "otel_collector": "otel/opentelemetry-collector-contrib@sha256:19a8facab166afc9b5b46bd27040430906cc7d1525ee1fa3f77a62bf97ae8be5"
+    }
+  }
+}

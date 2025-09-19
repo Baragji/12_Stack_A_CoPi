@@ -1,0 +1,31 @@
+{
+  "realm": "umca-dev",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "orchestrator-ci",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "orchestrator-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:8787/*"],
+      "webOrigins": ["*"]
+    }
+  ],
+  "users": [
+    {
+      "username": "smoke-user",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Passw0rd!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["default-roles-umca-dev"]
+    }
+  ]
+}
